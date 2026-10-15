@@ -1,0 +1,284 @@
+<title>Comment Triage</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: moderation desk — input "intake" panel on the left, triage queue on the right; stacks on phones */
+/* Palette: Modern Blue & Teal. Deliberately single light theme on an off-white base (user's choice). */
+:root{
+  --bg:#F8FAFC; --surface:#FFFFFF; --ink:#0F172A; --muted:#64748B; --line:#E2E8F0;
+  --blue:#2563EB; --teal:#14B8A6; --teal-deep:#0F766E; --teal-soft:#E6F7F5; --blue-soft:#EAF0FD;
+  --accent:#2563EB; --accent-ink:#FFFFFF; --accent-soft:#EAF0FD;
+  --ok:#0D9488; --ok-soft:#E6F7F5; --warn:#B45309; --warn-soft:#FEF3C7;
+  --bad:#DC2626; --bad-soft:#FEE2E2; --dim:#64748B; --dim-soft:#EEF2F6;
+  --flow:linear-gradient(90deg,#14B8A6,#2563EB,#14B8A6,#5EEAD4,#14B8A6);
+  --display:"Inter", "Segoe UI", system-ui, sans-serif;
+  --body:"Inter", "Segoe UI", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme:light;
+}
+@keyframes flow{from{background-position:0% 50%}to{background-position:200% 50%}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(20,184,166,.55)}70%{box-shadow:0 0 0 7px rgba(20,184,166,0)}}
+@keyframes shimmer{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+*{box-sizing:border-box}
+/* moving teal band across the top of the page */
+.flowband{height:5px;border-radius:999px;background:var(--flow);background-size:200% 100%;animation:flow 6s linear infinite}
+.tealword{background:var(--flow);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:flow 6s linear infinite}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--teal);display:inline-block;margin-right:7px;vertical-align:1px;animation:pulse 2s ease-out infinite}
+.results-panel{position:relative;overflow:hidden}
+.results-panel::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--flow);background-size:200% 100%;animation:flow 6s linear infinite}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:20px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(26px,4vw,36px);line-height:1.1;margin:0;letter-spacing:-.025em;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0;max-width:62ch}
+.engine{font-family:var(--mono);font-size:12px;padding:6px 12px;border-radius:999px;background:var(--teal-soft);color:var(--teal-deep);white-space:nowrap;border:1px solid #BCEBE4}
+.grid{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:880px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:grid;gap:14px;min-width:0}
+.panel h2{font-family:var(--display);font-weight:600;font-size:17px;margin:0}
+label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block;margin-bottom:5px}
+input[type=text],textarea,select{width:100%;font:inherit;font-size:14px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:9px 10px}
+textarea{resize:vertical;line-height:1.45}
+#comments{min-height:210px;font-family:var(--mono);font-size:12.5px}
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.hint{font-size:12px;color:var(--muted)}
+button{font:inherit;font-weight:600;font-size:14px;border-radius:7px;cursor:pointer;padding:9px 14px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+button:hover{border-color:var(--accent)}
+.primary{background:linear-gradient(90deg,#2563EB,#14B8A6,#2563EB);background-size:200% 100%;animation:flow 5s linear infinite;color:var(--accent-ink);border:0;width:100%;padding:12px;position:relative;overflow:hidden;box-shadow:0 6px 18px -8px rgba(37,99,235,.6)}
+.primary::after{content:"";position:absolute;top:0;bottom:0;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);animation:shimmer 2.8s ease-in-out infinite}
+.primary:hover{filter:brightness(1.06)}
+.slider{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+input[type=range]{accent-color:var(--accent);width:100%}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.file{position:relative;overflow:hidden}
+.file input{position:absolute;inset:0;opacity:0;cursor:pointer}
+/* summary */
+.summary{display:grid;gap:12px}
+.bar{display:flex;height:12px;border-radius:999px;overflow:hidden;background:var(--dim-soft)}
+.bar span{display:block;height:100%;transition:width .4s ease}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+@media (max-width:560px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.stat{display:grid;gap:2px;padding:8px 0;border-top:3px solid var(--c,var(--line))}
+.stat b{font-family:var(--display);font-size:24px;font-weight:800;line-height:1}
+.stat small{font-size:12px;color:var(--muted)}
+/* filters */
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:5px 11px;font-size:13px;border-radius:999px}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip:hover{border-color:var(--teal)}
+/* queue */
+.queue{display:grid;gap:0;border-top:1px solid var(--line)}
+.item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);align-items:start}
+.idx{font-family:var(--mono);font-size:12px;color:var(--muted);padding-top:2px;min-width:2.2em}
+.txt{margin:0 0 6px;overflow-wrap:anywhere}
+.why{font-size:12.5px;color:var(--muted);margin:0}
+.kw{font-family:var(--mono);font-size:11px;background:var(--teal-soft);color:var(--teal-deep);padding:1px 5px;border-radius:4px;margin-right:4px;display:inline-block;margin-top:4px}
+.side{display:grid;gap:6px;justify-items:end;min-width:108px}
+.pill{font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:5px;white-space:nowrap}
+.relevant{background:var(--ok-soft);color:var(--ok)} .off_topic{background:var(--warn-soft);color:var(--warn)}
+.spam{background:var(--bad-soft);color:var(--bad)} .low_effort{background:var(--dim-soft);color:var(--dim)}
+.meter{width:100px;display:grid;gap:3px}
+.meter i{display:block;height:5px;border-radius:3px;background:var(--dim-soft);position:relative;overflow:hidden}
+.meter i::after{content:"";position:absolute;inset:0;width:var(--w);background:var(--mc,var(--accent))}
+.meter span{font-family:var(--mono);font-size:10.5px;color:var(--muted);text-align:right}
+@media (max-width:520px){.item{grid-template-columns:minmax(0,1fr)}.idx{display:none}.side{justify-items:start;grid-auto-flow:column;align-items:center;justify-content:start}}
+.empty{color:var(--muted);padding:24px 0;text-align:center}
+.toast{font-size:13px;color:var(--teal-deep);min-height:1.2em}
+input[type=range]{accent-color:var(--teal)}
+details{font-size:13.5px;color:var(--muted)}
+details summary{cursor:pointer;font-weight:600;color:var(--ink)}
+details p{margin:8px 0 0;max-width:70ch}
+@media (prefers-reduced-motion:reduce){.bar span{transition:none}.flowband,.tealword,.primary,.primary::after,.dot,.results-panel::before{animation:none}}
+</style>
+
+<div class="wrap">
+  <div class="flowband" aria-hidden="true"></div>
+  <header>
+    <div>
+      <h1>Comment <span class="tealword">Triage</span></h1>
+      <p class="sub">Paste a post and its comments. Each comment is checked against the post's topic and sorted into relevant, off-topic, spam or low-effort.</p>
+    </div>
+    <span class="engine" id="engine">Engine: in-browser rules</span>
+  </header>
+
+  <div class="grid">
+    <form class="panel" id="form" autocomplete="off">
+      <h2>The post</h2>
+      <div>
+        <label for="sample">Load an example</label>
+        <select id="sample"></select>
+      </div>
+      <div>
+        <label for="title">Title</label>
+        <input type="text" id="title">
+      </div>
+      <div>
+        <label for="post">Post / video description</label>
+        <textarea id="post" rows="5"></textarea>
+      </div>
+      <div>
+        <label for="comments">Comments, one per line</label>
+        <textarea id="comments"></textarea>
+        <div class="row" style="margin-top:6px;justify-content:space-between">
+          <span class="hint" id="count">0 comments</span>
+          <span class="button file"><button type="button" tabindex="-1">Upload CSV</button><input type="file" id="csv" accept=".csv,.txt" aria-label="Upload CSV of comments"></span>
+        </div>
+      </div>
+      <div>
+        <label for="threshold">On-topic threshold</label>
+        <div class="slider">
+          <input type="range" id="threshold" min="0.02" max="0.4" step="0.01" value="0.10">
+          <span class="mono" id="thval">0.10</span>
+        </div>
+        <span class="hint">Higher = stricter. Comments scoring below this relevance are marked off-topic.</span>
+      </div>
+      <button type="submit" class="primary">Analyze comments</button>
+    </form>
+
+    <section class="panel results-panel" aria-live="polite">
+      <div class="row" style="justify-content:space-between">
+        <h2 id="headline">Results</h2>
+        <button type="button" id="copy">Copy as CSV</button>
+      </div>
+      <div class="summary">
+        <div class="bar" id="bar" role="img" aria-label="Distribution of comment labels"></div>
+        <div class="stats" id="stats"></div>
+      </div>
+      <div class="chips" id="chips" role="group" aria-label="Filter by label"></div>
+      <div class="toast" id="toast"></div>
+      <textarea id="csvout" rows="5" readonly hidden aria-label="Results as CSV"></textarea>
+      <div class="queue" id="queue"></div>
+      <details>
+        <summary>How the detector decides</summary>
+        <p><strong>Relevance</strong> blends TF‑IDF cosine similarity between the comment and the post (title counted twice) with keyword overlap, after removing stop‑words and stemming. <strong>Spam</strong> adds up signals: links, contact handles, phone numbers, self‑promotion phrases, money bait, all caps and repeated characters. The Python backend also runs a trained logistic‑regression classifier and combines it with these rules. <strong>Low‑effort</strong> catches short filler such as "nice video" or emoji‑only replies.</p>
+      </details>
+    </section>
+  </div>
+</div>
+
+<script>
+/* ===== Detection engine (JS port of app/detector.py rules) ===== */
+const STOP=new Set(`a about above after again against all am an and any are aren't as at be because been before being below between both but by can can't cannot could couldn't did didn't do does doesn't doing don't down during each few for from further had hadn't has hasn't have haven't having he he'd he'll he's her here here's hers herself him himself his how how's i i'd i'll i'm i've if in into is isn't it it's its itself let's me more most mustn't my myself no nor not of off on once only or other ought our ours ourselves out over own same shan't she she'd she'll she's should shouldn't so some such than that that's the their theirs them themselves then there there's these they they'd they'll they're they've this those through to too under until up very was wasn't we we'd we'll we're we've were weren't what what's when when's where where's which while who who's whom why why's with won't would wouldn't you you'd you'll you're you've your yours yourself yourselves just also really get got like will one would much even still well im dont ive youre thats its u ur ya yeah yes ok okay oh`.split(/\s+/));
+const GENERIC=new Set(`nice good great awesome cool wow amazing love loved lovely first second third lol lmao haha hahaha thanks thank thx ty video post content keep it up bro sis dude man fire lit superb best wonderful beautiful fantastic excellent perfect op epic sweet hi hello hey hii yo agree same true facts news info update updates interesting informative helpful useful`.split(/\s+/));
+const PROMO=[/\bsubscribe\b/,/\bsub\s*4\s*sub\b/,/\bcheck\s+(out\s+)?my\b/,/\bvisit\s+my\b/,/\bfollow\s+(me|my|back)\b/,/\bmy\s+(channel|page|profile|store|shop|website|blog)\b/,/\bclick\s+(here|the\s+link|link)\b/,/\blink\s+in\s+(my\s+)?bio\b/,/\bbuy\s+now\b/,/\bfree\s+(gift|followers|likes|iphone|money|giveaway|trial)\b/,/\bgiveaway\b/,/\bdiscount\s+code\b/,/\bpromo\s+code\b/,/\buse\s+code\b/,/\bdm\s+me\b/,/\binbox\s+me\b/,/\bwork\s+from\s+home\b/,/\bpromote\b/,/\bsponsor/,/\blimited\s+offer\b/,/\bact\s+now\b/,/\border\s+now\b/,/\bshop\s+now\b/];
+const MONEY=[/\$\s?\d/,/\b\d+\s?(k|usd|dollars|rs|inr)\b/,/\bearn(ed|ing)?\b/,/\bprofit/,/\bincome\b/,/\bcrypto\b/,/\bbitcoin\b/,/\bbtc\b/,/\bforex\b/,/\binvest(ing|ment|or)?\b/,/\bpassive\s+income\b/,/\bget\s+rich\b/,/\bmake\s+money\b/,/\bcash\b/,/\btrading\b/,/\bloan\b/,/\bcasino\b/,/\bbetting\b/,/\blottery\b/];
+const URL_RE=/(https?:\/\/|www\.)\S+|\b\S+\.(com|net|org|io|ly|xyz|in|co|me|link|shop)\b(\/\S*)?/i;
+const EMAIL_RE=/\b[\w.+-]+@[\w-]+\.[\w.]+\b/, PHONE_RE=/(\+?\d[\d\s-]{8,}\d)/, CONTACT_RE=/\b(whats\s?app|telegram|wa\.me|t\.me|signal|snapchat|snap|kik)\b/i, REPEAT_RE=/(.)\1{3,}/u;
+const SUF=["ingly","edly","ing","ies","ied","ers","est","ed","es","er","ly","s"];
+const NO_STEM=new Set(["news","series","species","bus","gas","this","always","perhaps","less","focus","status","analysis"]);
+function stem(w){if(NO_STEM.has(w)||/(ss|us|is)$/.test(w))return w;for(const s of SUF){if(w.endsWith(s)&&w.length-s.length>=3){let b=w.slice(0,-s.length);if(s==="ies"||s==="ied")b+="y";return b}}return w}
+const words=t=>(t.toLowerCase().replace(/’/g,"'").match(/[a-z0-9']+/g)||[]).map(w=>w.replace(/^'+|'+$/g,"")).filter(Boolean);
+const tokenize=t=>words(t).filter(w=>!STOP.has(w)&&w.length>1).map(stem);
+function tfidf(docs){const n=docs.length,df=new Map();docs.forEach(d=>new Set(d).forEach(t=>df.set(t,(df.get(t)||0)+1)));
+  return docs.map(d=>{const tf=new Map();d.forEach(t=>tf.set(t,(tf.get(t)||0)+1));const v=new Map();let s=0;
+    tf.forEach((c,t)=>{const x=(1+Math.log(c))*(Math.log((n+1)/(df.get(t)+1))+1);v.set(t,x);s+=x*x});s=Math.sqrt(s)||1;v.forEach((x,t)=>v.set(t,x/s));return v})}
+const cos=(a,b)=>{let s=0;a.forEach((v,t)=>{if(b.has(t))s+=v*b.get(t)});return s};
+function spamSignals(text){const r=[];let s=0;const low=text.toLowerCase();
+  if(URL_RE.test(text)){s+=.45;r.push("Contains a link")}
+  if(EMAIL_RE.test(text)||PHONE_RE.test(text)||CONTACT_RE.test(text)){s+=.4;r.push("Shares contact info / messaging handle")}
+  const p=PROMO.filter(x=>x.test(low)).length;if(p){s+=Math.min(.35+.15*(p-1),.65);r.push("Self-promotion language")}
+  const m=MONEY.filter(x=>x.test(low)).length;if(m){s+=Math.min(.2+.15*(m-1),.5);r.push("Money / investment bait")}
+  const L=[...text].filter(c=>c.toLowerCase()!==c.toUpperCase());if(L.length>=12&&L.filter(c=>c===c.toUpperCase()).length/L.length>.6){s+=.15;r.push("Mostly CAPS")}
+  if(REPEAT_RE.test(text)||(text.match(/!/g)||[]).length>=4){s+=.1;r.push("Excessive repetition / punctuation")}
+  return [Math.min(s,1),r]}
+function lowEffort(t){const w=words(t);if(!w.length)return true;return w.length<=6&&w.every(x=>GENERIC.has(x)||STOP.has(x))}
+function analyzeLocal(post,comments,title,th=.10,sth=.5){
+  const pt=tokenize(`${title} ${title} ${post}`),ct=comments.map(tokenize),V=tfidf([pt,...ct]),pset=new Set(pt);
+  const results=comments.map((text,i)=>{const toks=ct[i],c=cos(V[0],V[i+1]);const matched=[...new Set(toks.filter(t=>pset.has(t)))].sort();
+    const ov=toks.length?toks.filter(t=>pset.has(t)).length/toks.length:0;const rel=+Math.min(1,.6*c+.4*ov).toFixed(3);
+    let [sp,reasons]=spamSignals(text);sp=+sp.toFixed(3);let label,conf;
+    if(sp>=sth){label="spam";conf=sp}
+    else if(lowEffort(text)){label="low_effort";reasons=["Generic / filler comment with no substance"];conf=.8}
+    else if(rel>=th){label="relevant";reasons=[matched.length?`Shares topic words with the post: ${matched.slice(0,5).join(", ")}`:"Semantically close to the post"];conf=Math.min(.99,.55+(rel-th)*1.5)}
+    else{label="off_topic";reasons=[matched.length?`Only weak overlap with the post (${matched.slice(0,3).join(", ")})`:"No meaningful overlap with the post's topic",...reasons];conf=Math.min(.99,.55+(th-rel)*3)}
+    return {index:i,text,label,is_irrelevant:label!=="relevant",relevance:rel,spam_score:sp,confidence:+conf.toFixed(3),reasons,matched_keywords:matched.slice(0,8)}});
+  const cnt=l=>results.filter(r=>r.label===l).length,n=results.length;
+  return {summary:{total:n,relevant:cnt("relevant"),off_topic:cnt("off_topic"),spam:cnt("spam"),low_effort:cnt("low_effort"),irrelevant:n-cnt("relevant"),irrelevant_pct:n?+(100*(n-cnt("relevant"))/n).toFixed(1):0,model_loaded:false,threshold:th},results}}
+
+/* ===== Samples ===== */
+const SAMPLES={
+ pasta:{name:"Recipe video — creamy garlic pasta",title:"Creamy Garlic Pasta in 15 Minutes",
+  post:"Boil the spaghetti in salted water. Meanwhile saute minced garlic in butter, pour in heavy cream and simmer, then stir in grated parmesan cheese. Toss the pasta in the sauce, loosen with a splash of pasta water and finish with black pepper and parsley.",
+  comments:["Can I use milk instead of heavy cream for this pasta?","I added mushrooms to the garlic sauce and it was amazing","Who won the cricket match yesterday?","Earn $500 daily from home, DM me on WhatsApp +91 98765 43210","nice video","Check out my channel for gaming videos!","My parmesan clumped up, should the cream be off the heat first?","I hate Mondays so much","🔥🔥🔥","Tried this tonight, the sauce was too thick so I added more pasta water","FREE iPhone giveaway click here bit.ly/free-gift","How much salt do you put in the water for the spaghetti?","Anyone else watching this at 3am","Gluten free spaghetti works fine with this sauce btw"]},
+ react:{name:"Tutorial — React useEffect explained",title:"React useEffect Explained",
+  post:"In this tutorial we cover the useEffect hook in React: how the dependency array controls when an effect runs, why you return a cleanup function for subscriptions and timers, and how to avoid infinite render loops when fetching data in a component.",
+  comments:["Why does my effect run twice in development with StrictMode?","Great explanation of the dependency array, finally get it","Does the cleanup function run before every re-render or only on unmount?","sub4sub anyone? I will subscribe back","I just bought a new car and it's red","first!!","Would love a follow-up on useLayoutEffect vs useEffect","Visit my website www.cheapcodes.xyz for premium React templates","My fetch inside useEffect keeps looping, I forgot the empty array lol","What keyboard are you using?","thanks bro","Bitcoin to the moon, invest now and get rich"]},
+ metro:{name:"News article — city metro line extension",title:"City Approves Metro Line Extension to Airport",
+  post:"The city council voted to extend the metro line by 12 kilometres to reach the airport, adding six new stations. Construction is expected to start next year and the extension should cut travel time from downtown to the airport to 25 minutes. Officials say fares will stay the same.",
+  comments:["Finally! The airport bus takes over an hour right now","Six stations seems like a lot for 12 km, will it really be 25 minutes?","Who is paying for the construction, the city or the state?","My dog learned to open the fridge today","Work from home and earn passive income, link in bio","good news","Will the new stations be wheelchair accessible?","Forex signals daily, contact telegram @rich_signals","The council should fix potholes before building a metro","Love the photo in this article"]}
+};
+
+/* ===== UI ===== */
+const $=id=>document.getElementById(id);
+const LABELS={relevant:["Relevant","var(--ok)"],off_topic:["Off-topic","var(--warn)"],spam:["Spam","var(--bad)"],low_effort:["Low-effort","var(--dim)"]};
+let last=null,filter="all",apiAvailable=false;
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const lines=()=>$("comments").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+
+$("sample").add(new Option("None, start empty","blank"));
+Object.entries(SAMPLES).forEach(([k,s])=>$("sample").add(new Option(s.name,k)));
+$("title").placeholder="e.g. Creamy Garlic Pasta in 15 Minutes";
+$("post").placeholder="Paste the post, video description or article text the comments belong to.";
+$("comments").placeholder="Paste comments here, one per line.";
+function showEmpty(){last=null;$("headline").textContent="Results";$("bar").innerHTML="";$("stats").innerHTML="";$("chips").innerHTML="";
+  $("queue").innerHTML=`<div class="empty">No results yet. Paste a post and its comments on the left, then select Analyze comments. You can also load an example from the list.</div>`}
+function loadSample(k){const s=SAMPLES[k];if(!s){["title","post","comments"].forEach(i=>$(i).value="");updateCount();return}
+  $("title").value=s.title;$("post").value=s.post;$("comments").value=s.comments.join("\n");updateCount()}
+function updateCount(){const n=lines().length;$("count").textContent=`${n} comment${n===1?"":"s"}`}
+
+async function detectApi(){try{const ctl=new AbortController();setTimeout(()=>ctl.abort(),1500);
+  const r=await fetch("/api/health",{signal:ctl.signal});if(!r.ok)return false;const j=await r.json();
+  if(j.status==="ok"){setEngine(j.model_loaded?"Engine: server + ML model":"Engine: server rules");return true}}catch(e){}return false}
+function setEngine(t){$("engine").innerHTML=`<span class="dot"></span>${t}`}
+setEngine("Engine: in-browser rules");
+
+async function run(){
+  const post=$("post").value.trim(),title=$("title").value.trim(),comments=lines(),th=+$("threshold").value;
+  if(post.length<3){toast("Add the post text first so comments have something to be compared against.");return}
+  if(!comments.length){toast("Add at least one comment, one per line.");return}
+  let res=null;
+  if(apiAvailable){try{const r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({post,title,comments,threshold:th})});if(r.ok)res=await r.json()}catch(e){}}
+  last=res||analyzeLocal(post,comments,title,th);toast("");render()}
+
+function render(){if(!last)return;const s=last.summary;
+  $("headline").textContent=`${s.irrelevant} of ${s.total} flagged · ${s.irrelevant_pct}% irrelevant`;
+  $("bar").innerHTML=Object.keys(LABELS).map(k=>s[k]?`<span style="width:${100*s[k]/s.total}%;background:${LABELS[k][1]}" title="${LABELS[k][0]}: ${s[k]}"></span>`:"").join("");
+  $("stats").innerHTML=[["Total",s.total,"var(--ink)"],...Object.entries(LABELS).map(([k,[n,c]])=>[n,s[k],c])]
+    .map(([n,v,c])=>`<div class="stat" style="--c:${c}"><b class="mono">${v}</b><small>${n}</small></div>`).join("");
+  const opts=[["all","All",s.total],["irrelevant","All flagged",s.irrelevant],...Object.entries(LABELS).map(([k,[n]])=>[k,n,s[k]])];
+  $("chips").innerHTML=opts.map(([k,n,v])=>`<button type="button" class="chip" data-f="${k}" aria-pressed="${filter===k}">${n} <span class="mono">${v}</span></button>`).join("");
+  const rows=last.results.filter(r=>filter==="all"||(filter==="irrelevant"?r.is_irrelevant:r.label===filter));
+  $("queue").innerHTML=rows.length?rows.map(r=>{const [n,c]=LABELS[r.label];
+    return `<div class="item"><span class="idx">#${r.index+1}</span><div style="min-width:0"><p class="txt">${esc(r.text)}</p><p class="why">${r.reasons.map(esc).join(" · ")}</p>${r.label==="relevant"?r.matched_keywords.slice(0,6).map(k=>`<span class="kw">${esc(k)}</span>`).join(""):""}</div>
+    <div class="side"><span class="pill ${r.label}">${n}</span>
+      <div class="meter" title="Relevance to post"><i style="--w:${Math.round(r.relevance*100)}%;--mc:${c}"></i><span>rel ${r.relevance.toFixed(2)}</span></div>
+      <div class="meter" title="Spam score"><i style="--w:${Math.round(r.spam_score*100)}%;--mc:var(--bad)"></i><span>spam ${r.spam_score.toFixed(2)}</span></div></div></div>`}).join("")
+    :`<div class="empty">No comments in this group.</div>`}
+
+function toast(m){$("toast").textContent=m}
+$("chips").addEventListener("click",e=>{const b=e.target.closest("[data-f]");if(!b)return;filter=b.dataset.f;render()});
+$("form").addEventListener("submit",e=>{e.preventDefault();run()});
+$("sample").addEventListener("change",e=>{loadSample(e.target.value);if(e.target.value==="blank"){showEmpty();toast("")}else run()});
+$("comments").addEventListener("input",updateCount);
+$("threshold").addEventListener("input",e=>{$("thval").textContent=(+e.target.value).toFixed(2)});
+$("threshold").addEventListener("change",()=>{if(last)run()});
+$("csv").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{let rows=parseCSV(String(rd.result));if(!rows.length){toast("That file had no rows.");return}
+    const h=rows[0].map(x=>x.trim().toLowerCase());let col=h.findIndex(x=>["comment","comments","text","body","message"].includes(x));
+    if(col>=0)rows=rows.slice(1);else col=0;const cs=rows.map(r=>(r[col]||"").trim()).filter(Boolean);
+    $("comments").value=cs.join("\n");updateCount();toast(`Loaded ${cs.length} comments from ${f.name}.`);e.target.value=""};rd.readAsText(f)});
+function parseCSV(t){const out=[];let row=[],cur="",q=false;for(let i=0;i<t.length;i++){const c=t[i];
+  if(q){if(c==='"'){if(t[i+1]==='"'){cur+='"';i++}else q=false}else cur+=c}
+  else if(c==='"')q=true;else if(c===","){row.push(cur);cur=""}else if(c==="\n"||c==="\r"){if(c==="\r"&&t[i+1]==="\n")i++;row.push(cur);out.push(row);row=[];cur=""}else cur+=c}
+  if(cur||row.length){row.push(cur);out.push(row)}return out.filter(r=>r.some(x=>x.trim()))}
+$("copy").addEventListener("click",async()=>{if(!last)return;const q=s=>`"${String(s).replace(/"/g,'""')}"`;
+  const csv=["index,comment,label,relevance,spam_score,confidence,reasons",...last.results.map(r=>[r.index+1,q(r.text),r.label,r.relevance,r.spam_score,r.confidence,q(r.reasons.join("; "))].join(","))].join("\n");
+  try{await navigator.clipboard.writeText(csv);toast("Copied results as CSV.")}catch(e){const o=$("csvout");o.hidden=false;o.value=csv;o.select();toast("Clipboard is blocked here. The CSV is selected in the box below; copy it from there.")}});
+
+updateCount();showEmpty();
+detectApi().then(ok=>{apiAvailable=ok;if(ok&&last)run()});
+</script>

@@ -1,0 +1,6 @@
+{
+  "accuracy": 1.0,
+  "f1_spam": 1.0,
+  "train_size": 555,
+  "test_size": 139
+}
