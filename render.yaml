@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: irrelevant-comment-detector
+    runtime: docker
+    plan: free
+    branch: main
+    autoDeploy: true
+    dockerfilePath: ./irrelevant-comment-detector/Dockerfile
+    dockerContext: ./irrelevant-comment-detector
+    healthCheckPath: /api/health
+    envVars:
+      - key: CORS_ORIGINS
+        value: "*"
